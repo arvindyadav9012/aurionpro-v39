@@ -62,3 +62,45 @@ jobs:
         with:
           name: AurionPro-V39-APK
           path: "**/build/outputs/apk/debug/*.apk"
+name: Build Android APK
+on: [push, workflow_dispatch]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: List files
+        run: ls -lh | head -20
+      - name: Find ZIP
+        run: ls *.zip *.ZIP 2>/dev/null || echo "no zip"
+      - name: Extract Project
+        run: |
+          rm -rf project
+          mkdir project
+          ZIP=$(ls -1 *.zip | head -1)
+          cp "$ZIP" project/app.zip
+          cd project
+          unzip -o -q app.zip
+      - name: Find Gradle Project
+        run: |
+          DIR=$(find project -name "gradlew" | head -1 | xargs dirname)
+          echo "GRADLE_DIR=$DIR" >> $GITHUB_ENV
+          chmod +x $DIR/gradlew
+          echo "Gradle dir: $DIR"
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+      - name: Add Location & Camera Permission
+        run: |
+          M=$(find ${{ env.GRADLE_DIR }} -name "AndroidManifest.xml" | head -1)
+          sed -i '/<manifest/a \    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />\n    <uses-permission android:name="android.permission.CAMERA" />' $M
+      - name: Build APK
+        run: |
+          cd ${{ env.GRADLE_DIR }}
+          ./gradlew assembleDebug --no-daemon
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Aurion-Fixed-APK
+          path: '**/app/build/outputs/apk/debug/*.apk'

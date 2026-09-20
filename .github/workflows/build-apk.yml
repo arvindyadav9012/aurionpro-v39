@@ -11,19 +11,34 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: List files
+        run: |
+          echo "Repository files:"
+          find . -maxdepth 3 -type f | sort
+
       - name: Find ZIP
         run: |
-          ZIP=$(find . -maxdepth 2 -type f -name "*.zip" | head -1)
+          ZIP=$(find . -type f -iname "*.zip" | head -1)
+          if [ -z "$ZIP" ]; then
+            echo "ERROR: ZIP file not found"
+            exit 1
+          fi
+          echo "Found ZIP: $ZIP"
           echo "ZIP=$ZIP" >> $GITHUB_ENV
 
       - name: Extract Project
         run: |
-          mkdir project
-          unzip -q "$ZIP" -d project
+          mkdir -p project
+          unzip -o "$ZIP" -d project
 
       - name: Find Gradle Project
         run: |
           GRADLEW=$(find project -type f -name "gradlew" | head -1)
+          if [ -z "$GRADLEW" ]; then
+            echo "ERROR: gradlew not found"
+            find project -maxdepth 4 -type f | sort
+            exit 1
+          fi
           echo "GRADLEW=$GRADLEW" >> $GITHUB_ENV
           echo "PROJECT_DIR=$(dirname "$GRADLEW")" >> $GITHUB_ENV
 
